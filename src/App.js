@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
+import TaskInput from './components/TaskInput';
+import TaskSorter from './components/TaskSorter';
+import TaskTable from './components/TaskTable';
 
 function App() {
   const [tasks, setTasks] = useState([]);
@@ -7,24 +10,35 @@ function App() {
   const [taskDate, setTaskDate] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState([]);
+  const [sortKey, setSortKey] = useState('dateAsc');
+  const [hasChanges, setHasChanges] = useState(false);
 
-  // タスク追加
+
+  useEffect(() => {
+  const savedTasks = localStorage.getItem('my-todo-tasks');
+  if (savedTasks) {
+    setTasks(JSON.parse(savedTasks));
+  }
+}, []);
+useEffect(() => {
+  localStorage.setItem('my-todo-tasks', JSON.stringify(tasks));
+}, [tasks]);
+
+
   const addTask = () => {
     if (taskName.trim() && taskDate) {
-      const newTask = { name: taskName, date: taskDate };
+      const newTask = { name: taskName, date: taskDate, isDone: false };
       setTasks([...tasks, newTask]);
       setTaskName('');
       setTaskDate('');
     }
   };
 
-  // 編集モード切り替え
   const toggleEditMode = () => {
     setIsEditMode(!isEditMode);
     setSelectedTasks([]);
   };
 
-  // チェックボックス選択
   const toggleSelect = (index) => {
     if (selectedTasks.includes(index)) {
       setSelectedTasks(selectedTasks.filter(i => i !== index));
@@ -33,7 +47,13 @@ function App() {
     }
   };
 
-  // 一括削除
+const toggleDone = (index) => {
+  const updatedTasks = [...tasks];
+  updatedTasks[index].isDone = !updatedTasks[index].isDone;
+  setTasks(updatedTasks);
+  setHasChanges(true); // 変更があったことを記録
+};
+
   const deleteSelectedTasks = () => {
     const newTasks = tasks.filter((_, i) => !selectedTasks.includes(i));
     setTasks(newTasks);
@@ -41,60 +61,48 @@ function App() {
     setIsEditMode(false);
   };
 
+  const sortedTasks = [...tasks].sort((a, b) => {
+    switch (sortKey) {
+      case 'dateAsc':
+        return new Date(a.date) - new Date(b.date);
+      case 'dateDesc':
+        return new Date(b.date) - new Date(a.date);
+      case 'nameAsc':
+        return a.name.localeCompare(b.name);
+      case 'nameDesc':
+        return b.name.localeCompare(a.name);
+      default:
+        return 0;
+    }
+  });
+
   return (
     <div className="App">
       <h1>React学習用ToDoアプリ</h1>
-
-      <div className="input-area">
-        <input
-          type="text"
-          value={taskName}
-          onChange={(e) => setTaskName(e.target.value)}
-          placeholder="タスク名を入力"
-        />
-        <input
-          type="date"
-          value={taskDate}
-          onChange={(e) => setTaskDate(e.target.value)}
-        />
-        <button onClick={addTask}>追加</button>
-        {tasks.length > 0 && !isEditMode && (
-          <button onClick={toggleEditMode}>編集</button>
-        )}
-        {isEditMode && (
-          <button onClick={deleteSelectedTasks} disabled={selectedTasks.length === 0}>
-            削除
-          </button>
-        )}
-      </div>
-
-      <table className="task-table">
-        <thead>
-          <tr>
-            {isEditMode && <th className="select-col">選択</th>}
-            <th>日付</th>
-            <th>タスク名</th>
-          </tr>
-        </thead>
-        <tbody>
-  {tasks.map((task, index) => (
-    <tr key={index} className={selectedTasks.includes(index) ? 'selected' : ''}>
-      {isEditMode && (
-        <td className="select-col">
-          <input
-            type="checkbox"
-            checked={selectedTasks.includes(index)}
-            onChange={() => toggleSelect(index)}
-          />
-        </td>
-      )}
-      <td>{task.date}</td>
-      <td>{task.name}</td>
-    </tr>
-  ))}
-</tbody>
-
-      </table>
+      <TaskInput
+        taskName={taskName}
+        setTaskName={setTaskName}
+        taskDate={taskDate}
+        setTaskDate={setTaskDate}
+        addTask={addTask}
+        isEditMode={isEditMode}
+        toggleEditMode={toggleEditMode}
+        deleteSelectedTasks={deleteSelectedTasks}
+        selectedTasks={selectedTasks}
+        tasks={tasks}
+          hasChanges={hasChanges}
+        setIsEditMode={setIsEditMode}
+        setSelectedTasks={setSelectedTasks}   
+  setHasChanges={setHasChanges}        
+      />
+      <TaskSorter sortKey={sortKey} setSortKey={setSortKey} />
+      <TaskTable
+        tasks={sortedTasks}
+        isEditMode={isEditMode}
+        selectedTasks={selectedTasks}
+        toggleSelect={toggleSelect}
+        toggleDone={toggleDone}
+      />
     </div>
   );
 }
